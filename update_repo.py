@@ -23,7 +23,7 @@ default_args = {
 }
 
 def git_pull():
-    g = git.cmt.Git('/home/dschuster/airflow/dags/scp')
+    g = git.cmd.Git('/home/dschuster/airflow/dags/scp')
     g.pull()
     return
 

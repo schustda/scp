@@ -23,7 +23,7 @@ default_args = {
 }
 
 def git_pull():
-    g = git.cmt.Git('/home/dschuster/airflow/dags/scp')
+    g = git.cmd.Git('/home/dschuster/airflow/dags/scp')
     g.pull()
     return
 
@@ -36,3 +36,5 @@ t1 = PythonOperator(
 task_id='Git_Pull',
 python_callable=git_pull,
 dag=dag)
+
+git_pull()

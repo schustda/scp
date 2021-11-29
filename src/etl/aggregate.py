@@ -27,17 +27,33 @@ def insert():
     ps = PSQL('scp')
     with ps.conn.connect() as con:
         con.execute('''
-    INSERT INTO ihub.board_date (date, ticker, sentiment_polarity, sentiment_subjectivity, posts)
+    with ih AS (
+        SELECT 
+            CAST(ms.message_date AS date) date
+            ,ticker
+            ,AVG(sentiment_polarity) sentiment_polarity
+            ,AVG(sentiment_subjectivity) sentiment_subjectivity
+            ,COUNT(*) posts
+        FROM ihub.message_sentiment ms
+        LEFT JOIN items.symbol s ON ms.ihub_code = s.ihub_code
+        WHERE exchange = 'usotc'
+        GROUP BY CAST(ms.message_date AS date), ticker
+    )
+    
+    INSERT INTO ihub.board_date (date, ticker, sentiment_polarity, sentiment_subjectivity, posts, ohlc, dollar_volume)
     SELECT 
-        CAST(message_date AS date) date
-        ,ticker
-        ,AVG(sentiment_polarity) sentiment_polarity
-        ,AVG(sentiment_subjectivity) sentiment_subjectivity
-        ,COUNT(*) posts
-    FROM ihub.message_sentiment ms
-    LEFT JOIN items.symbol s ON ms.ihub_code = s.ihub_code
-	WHERE exchange = 'usotc'
-    GROUP BY CAST(message_date AS date), ticker;
+        ph.date
+        ,ph.ticker
+        ,sentiment_polarity
+        ,sentiment_subjectivity
+        ,posts
+        ,ohlc
+        ,dollar_volume
+    FROM market.price_history ph
+        
+    LEFT JOIN ih
+    ON ph.ticker = ih.ticker
+    AND ph.date = ih.date;
     COMMIT;
     ''')
     return

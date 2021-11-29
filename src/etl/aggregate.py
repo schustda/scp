@@ -72,12 +72,21 @@ def update():
     with ps.conn.connect() as con:
         con.execute('''
     with cte AS (
-        SELECT date, ticker, RANK() OVER(PARTITION BY date ORDER BY posts DESC) daily_ranking
+        SELECT 
+            date
+            ,ticker
+            ,RANK() OVER(PARTITION BY date ORDER BY posts DESC) daily_ranking
+            ,AVG(ohlc) OVER(ORDER BY date ROWS BETWEEN 1 FOLLOWING AND 5 FOLLOWING) AS one_wk_avg
+            ,AVG(ohlc) OVER(ORDER BY date ROWS BETWEEN 1 FOLLOWING AND 10 FOLLOWING) AS two_wk_avg
+            ,AVG(dollar_volume) OVER(ORDER BY date ROWS BETWEEN CURRENT ROW AND 10 FOLLOWING) AS two_wk_vol 
         FROM ihub.board_date
     )
 
     UPDATE ihub.board_date bd
     SET daily_ranking = cte.daily_ranking
+        ,one_wk_avg = cte.one_wk_avg
+        ,two_wk_avg = cte.two_wk_avg
+        ,two_wk_vol = cte.two_wk_vol
     FROM cte
     WHERE bd.date = cte.date
     AND bd.ticker = cte.ticker;

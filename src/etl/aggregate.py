@@ -94,6 +94,48 @@ def update():
     ''')
     return
     
+def define_target():
+    ps = PSQL('scp')
+    # ps.conn.execute(
+    with ps.conn.connect() as con:
+        con.execute('''
+    with ticker_dates AS (
+        SELECT ticker, MIN(date) ticker_min_date
+        FROM ihub.board_date
+        GROUP BY ticker
+    )
+
+    UPDATE ihub.board_date bd
+    SET target = (CASE 
+        WHEN one_wk_avg > ohlc * 5 THEN 1
+        WHEN one_wk_avg < ohlc THEN 0
+        ELSE (one_wk_avg-ohlc)/(ohlc*(5-1))
+    END
+    +
+    CASE
+        WHEN two_wk_avg > ohlc * 3 THEN 1
+        WHEN two_wk_avg < ohlc THEN 0
+        ELSE (two_wk_avg-ohlc)/(ohlc*(3-1))
+    END) / 2
+
+    FROM ticker_dates
+    WHERE bd.ticker = ticker_dates.ticker
+
+    -- Needs to be 60 days past the first offering. Most of these small cap stocks are crazy volitile at the beginning.
+    AND bd.date > ticker_min_date + interval '60 day'
+
+    -- Don't set target on tickers with no price
+    AND bd.ohlc > 0
+
+    -- ohlc needs to be greater than .00015 to avoid inactive
+    AND two_wk_avg > 0.00015
+
+    -- Ticker is being actively traded
+    AND two_wk_vol > 500;
+    COMMIT;
+    ''')
+    return
+    
 
 dag = DAG(
     dag_id='Aggregate', default_args=args,catchup=False,

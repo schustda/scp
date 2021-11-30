@@ -30,7 +30,7 @@ def metrics_production():
         FROM market.price_history
         WHERE one_wk_avg IS NULL
         AND date < '2021-11-29'
-        LIMIT 100
+        LIMIT 10
     ''')
     for ticker in tickers:
         with ps.conn.connect() as con:

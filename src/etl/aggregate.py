@@ -156,4 +156,9 @@ task_id='update',
 python_callable=update,
 dag=dag)
 
-t1 >> t2 >> t3
+t4 = PythonOperator(
+task_id='define_target',
+python_callable=define_target,
+dag=dag)
+
+t1 >> t2 >> t3 >> t4

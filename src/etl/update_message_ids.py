@@ -32,7 +32,7 @@ def pull_most_recent():
     max_post = db.get_scalar('''SELECT value_int FROM items.parameters WHERE name = 'max_post_number' ''')
     
     # Search long first
-    for i in [10000, 1000]:
+    for i in [10000, 1000, 100]:
         for post_number in sample(range(max_post+i,max_post+(i*2)),10):
             sleep(5)
             resp = ih.get_message_data(post_number)

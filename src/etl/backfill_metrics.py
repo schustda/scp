@@ -38,7 +38,6 @@ def metrics_production():
                     FROM market.price_history
                     WHERE one_wk_avg IS NULL
                     AND date < '2021-11-29'
-                    LIMIT 500
                 )
             )        
             UPDATE market.price_history ph
@@ -53,10 +52,7 @@ def metrics_production():
     return
 
 
-dag = DAG(
-    dag_id='Backfill_Metrics', default_args=args,catchup=False,
-    schedule_interval=timedelta(hours=1)
-    )
+dag = DAG(dag_id='Backfill_Metrics', default_args=args,catchup=False)
 
 t1 = PythonOperator(
 task_id='metrics_production',

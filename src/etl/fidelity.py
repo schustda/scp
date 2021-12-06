@@ -125,10 +125,45 @@ def business_rules_staging():
     ''')
     return
 
+def metrics_production():
+    ps = PSQL('scp')
+    with ps.conn.connect() as con:
+        con.execute(f'''
+            with backfilled_tickers AS (
+                SELECT ticker
+                FROM market.price_history
+                WHERE one_wk_avg IS NOT NULL
+            )
+            ,recent_date AS (
+                SELECT MIN(date) min_date
+                FROM market.price_history
+                WHERE ticker IN (SELECT ticker FROM backfilled_tickers)
+                AND one_wk_avg IS NULL
+            )
+            ,cte AS (
+                SELECT date, ticker
+                    ,AVG(ohlc) OVER(ORDER BY date ROWS BETWEEN 1 FOLLOWING AND 5 FOLLOWING) AS one_wk_avg
+                    ,AVG(ohlc) OVER(ORDER BY date ROWS BETWEEN 1 FOLLOWING AND 10 FOLLOWING) AS two_wk_avg
+                    ,AVG(dollar_volume) OVER(ORDER BY date ROWS BETWEEN CURRENT ROW AND 10 FOLLOWING) AS two_wk_vol 
+                FROM market.price_history
+                WHERE ticker NOT IN (SELECT ticker FROM backfilled_tickers)
+                OR date > (SELECT min_date FROM recent_date) interval '-12 days'
+            )        
+            UPDATE market.price_history ph
+            SET one_wk_avg =  cte.one_wk_avg
+                ,two_wk_avg = cte.two_wk_avg
+                ,two_wk_vol = cte.two_wk_vol
+            FROM cte
+            WHERE ph.date = cte.date
+            AND ph.ticker = cte.ticker;
+            COMMIT;
+    ''')
+    return
+
 
 dag = DAG(
     dag_id='Price_History', default_args=args,catchup=False,
-    # schedule_interval=timedelta(days=1)
+    schedule_interval=timedelta(days=1)
     )
 
 t1 = PythonOperator(
@@ -149,7 +184,12 @@ dag=dag)
 
 t5 = PythonOperator(
 task_id='drop_staging',
-python_callable=insert,
+python_callable=drop_staging,
+dag=dag)
+
+t6 = PythonOperator(
+task_id='metrics_production',
+python_callable=metrics_production,
 dag=dag)
 
 for i in range(4):
@@ -162,3 +202,5 @@ for i in range(4):
     t1 >> t2 >> t3
 
 t3 >> t4 >> t5
+
+t4 >> t6

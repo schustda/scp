@@ -46,8 +46,8 @@ def get_tickers():
                     SET exchange = '{exchange}', ticker = '{ticker}', modified_date = NOW()
                     WHERE ihub_code = '{ihub_code}'
                 ''')
-            except:
-                pass
+            except Exception as e:
+                print(e)
 
 dag = DAG(
     dag_id='Get_Tickers', default_args=args,catchup=False,

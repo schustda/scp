@@ -40,7 +40,7 @@ def insert():
         GROUP BY CAST(ms.message_date AS date), ticker
     )
     
-    INSERT INTO ihub.board_date (date, ticker, sentiment_polarity, sentiment_subjectivity, posts, ohlc, dollar_volume)
+    INSERT INTO ihub.board_date (date, ticker, sentiment_polarity, sentiment_subjectivity, posts, ohlc, dollar_volume, one_wk_avg, two_wk_avg, two_wk_vol, target)
     SELECT 
         ph.date
         ,ph.ticker
@@ -49,6 +49,10 @@ def insert():
         ,posts
         ,ohlc
         ,dollar_volume
+        ,one_wk_avg
+        ,two_wk_avg
+        ,two_wk_vol
+        ,target
     FROM market.price_history ph
         
     LEFT JOIN ih
@@ -61,32 +65,21 @@ def insert():
 def truncate():
 
     ps = PSQL('scp')
-    # ps.conn.execute(
     with ps.conn.connect() as con:
         con.execute('''TRUNCATE TABLE ihub.board_date; COMMIT;''')
     return
 
 def update():
     ps = PSQL('scp')
-    # ps.conn.execute(
     with ps.conn.connect() as con:
         con.execute('''
     with cte AS (
-        SELECT 
-            date
-            ,ticker
-            ,RANK() OVER(PARTITION BY date ORDER BY posts DESC) daily_ranking
-            ,AVG(ohlc) OVER(ORDER BY date ROWS BETWEEN 1 FOLLOWING AND 5 FOLLOWING) AS one_wk_avg
-            ,AVG(ohlc) OVER(ORDER BY date ROWS BETWEEN 1 FOLLOWING AND 10 FOLLOWING) AS two_wk_avg
-            ,AVG(dollar_volume) OVER(ORDER BY date ROWS BETWEEN CURRENT ROW AND 10 FOLLOWING) AS two_wk_vol 
+        SELECT date, ticker, RANK() OVER(PARTITION BY date ORDER BY posts DESC) daily_ranking
         FROM ihub.board_date
     )
 
     UPDATE ihub.board_date bd
     SET daily_ranking = cte.daily_ranking
-        ,one_wk_avg = cte.one_wk_avg
-        ,two_wk_avg = cte.two_wk_avg
-        ,two_wk_vol = cte.two_wk_vol
     FROM cte
     WHERE bd.date = cte.date
     AND bd.ticker = cte.ticker;
@@ -96,7 +89,6 @@ def update():
     
 def define_target():
     ps = PSQL('scp')
-    # ps.conn.execute(
     with ps.conn.connect() as con:
         con.execute('''
     with ticker_dates AS (

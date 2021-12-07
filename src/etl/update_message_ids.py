@@ -59,7 +59,9 @@ def add_to_log():
 
 dag = DAG(
     dag_id='Update_New_Messages', default_args=args,catchup=False,
-    schedule_interval=timedelta(minutes=10))
+    schedule_interval=timedelta(minutes=10),
+    tags=["etl","ihub"]
+    )
 
 t1 = PythonOperator(
 task_id='Pull_most_recent_post_number',

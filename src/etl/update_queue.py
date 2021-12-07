@@ -74,7 +74,9 @@ def pull_new_messages(list_num):
 
 dag = DAG(
     dag_id='Pull_New_Messages', default_args=args,catchup=False,
-    schedule_interval=timedelta(minutes=60))
+    schedule_interval=timedelta(minutes=60),
+    tags=["etl","ihub"]
+    )
 
 t1 = PythonOperator(
 task_id='dump_to_missing_ids_table',

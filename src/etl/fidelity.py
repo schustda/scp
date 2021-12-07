@@ -163,7 +163,8 @@ def metrics_production():
 
 dag = DAG(
     dag_id='Price_History', default_args=args,catchup=False,
-    schedule_interval=timedelta(days=1)
+    schedule_interval=timedelta(days=1),
+    tags=["etl","stock"]
     )
 
 t1 = PythonOperator(

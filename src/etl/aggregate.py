@@ -48,7 +48,9 @@ def truncate():
 
 dag = DAG(
     dag_id='Aggregate', default_args=args,catchup=False,
-    schedule_interval=timedelta(days=1))
+    schedule_interval=timedelta(days=1),
+    tags=["etl"]
+    )
 
 t1 = PythonOperator(
 task_id='truncate',

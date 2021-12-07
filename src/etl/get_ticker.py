@@ -51,7 +51,10 @@ def get_tickers():
 
 dag = DAG(
     dag_id='Get_Tickers', default_args=args,catchup=False,
-    schedule_interval=timedelta(weeks=1))
+    schedule_interval=timedelta(weeks=1),
+    tags=["etl","ihub"]
+    )
+
 
 t1 = PythonOperator(
 task_id='Get_Tickers',

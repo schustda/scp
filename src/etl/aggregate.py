@@ -27,23 +27,12 @@ def insert():
     ps = PSQL('scp')
     with ps.conn.connect() as con:
         con.execute('''
-    with ih AS (
-        SELECT date, ticker, sentiment_polarity, sentiment_subjectivity, posts, RANK() OVER(PARTITION BY date ORDER BY posts DESC) daily_ranking
-        FROM (
-            SELECT CAST(ms.message_date AS date) date, ticker, AVG(sentiment_polarity) sentiment_polarity, AVG(sentiment_subjectivity) sentiment_subjectivity, COUNT(*) posts
-            FROM ihub.message_sentiment ms
-            LEFT JOIN items.symbol s ON ms.ihub_code = s.ihub_code
-            WHERE exchange = 'usotc'
-            GROUP BY CAST(ms.message_date AS date), ticker
-        ) x
-    )
-
     INSERT INTO ihub.board_date (date, ticker, sentiment_polarity, sentiment_subjectivity, posts, daily_ranking, ohlc, dollar_volume, one_wk_avg, two_wk_avg, two_wk_vol, target)
-    SELECT ph.date,ph.ticker,sentiment_polarity,sentiment_subjectivity,posts,daily_ranking,ohlc,dollar_volume,one_wk_avg,two_wk_avg,two_wk_vol,target
-    FROM market.price_history ph
-    LEFT JOIN ih
-    ON ph.ticker = ih.ticker
-    AND ph.date = ih.date;
+    SELECT bd.date,bd.ticker,sentiment_polarity,sentiment_subjectivity,posts,daily_ranking,ohlc,dollar_volume,one_wk_avg,two_wk_avg,two_wk_vol,t.target
+    FROM ihub.vBoard_date bd
+    LEFT JOIN ihub.vTarget t
+    ON bd.ticker = t.ticker
+    AND bd.date = t.date;
     COMMIT;
     ''')
     return
@@ -55,46 +44,6 @@ def truncate():
         con.execute('''TRUNCATE TABLE ihub.board_date; COMMIT;''')
     return
     
-def define_target():
-    ps = PSQL('scp')
-    with ps.conn.connect() as con:
-        con.execute('''
-    with ticker_dates AS (
-        SELECT ticker, MIN(date) ticker_min_date
-        FROM ihub.board_date
-        GROUP BY ticker
-    )
-
-    UPDATE ihub.board_date bd
-    SET target = (CASE 
-        WHEN one_wk_avg > ohlc * 5 THEN 1
-        WHEN one_wk_avg < ohlc THEN 0
-        ELSE (one_wk_avg-ohlc)/(ohlc*(5-1))
-    END
-    +
-    CASE
-        WHEN two_wk_avg > ohlc * 3 THEN 1
-        WHEN two_wk_avg < ohlc THEN 0
-        ELSE (two_wk_avg-ohlc)/(ohlc*(3-1))
-    END) / 2
-
-    FROM ticker_dates
-    WHERE bd.ticker = ticker_dates.ticker
-
-    -- Needs to be 60 days past the first offering. Most of these small cap stocks are crazy volitile at the beginning.
-    AND bd.date > ticker_min_date + interval '60 day'
-
-    -- Don't set target on tickers with no price
-    AND bd.ohlc > 0
-
-    -- ohlc needs to be greater than .00015 to avoid inactive
-    AND two_wk_avg > 0.00015
-
-    -- Ticker is being actively traded
-    AND two_wk_vol > 500;
-    COMMIT;
-    ''')
-    return
     
 
 dag = DAG(
@@ -111,9 +60,4 @@ task_id='insert',
 python_callable=insert,
 dag=dag)
 
-t3 = PythonOperator(
-task_id='define_target',
-python_callable=define_target,
-dag=dag)
-
-t1 >> t2 >> t3
+t1 >> t2

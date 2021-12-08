@@ -40,14 +40,14 @@ def fill_staging_table1():
 def fill_staging_table2():
     ps = PSQL('scp')
     with ps.conn.connect() as con:
-        con.execute(f'''INSERT INTO staging.idx2 (idx) SELECT idx FROM staging.idx1;
+        con.execute(f'''INSERT INTO staging.idx2 (idx) SELECT idx FROM staging.idx1 TABLESAMPLE SYSTEM (75);
         COMMIT;''')
     return
 
 def fill_staging_table3():
     ps = PSQL('scp')
     with ps.conn.connect() as con:
-        con.execute(f'''INSERT INTO staging.idx3 (idx) SELECT idx FROM staging.idx2;
+        con.execute(f'''INSERT INTO staging.idx3 (idx) SELECT idx FROM staging.idx2 TABLESAMPLE SYSTEM (75);
         COMMIT;''')
     return
 

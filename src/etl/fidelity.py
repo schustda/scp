@@ -135,7 +135,7 @@ def metrics_production():
                 WHERE one_wk_avg IS NOT NULL
             )
             ,recent_date AS (
-                SELECT MIN(date) min_date
+                SELECT MIN(date) + interval '-12 days' min_date
                 FROM market.price_history
                 WHERE ticker IN (SELECT ticker FROM backfilled_tickers)
                 AND one_wk_avg IS NULL
@@ -147,7 +147,7 @@ def metrics_production():
                     ,AVG(dollar_volume) OVER(ORDER BY date ROWS BETWEEN CURRENT ROW AND 10 FOLLOWING) AS two_wk_vol 
                 FROM market.price_history
                 WHERE ticker NOT IN (SELECT ticker FROM backfilled_tickers)
-                OR date > (SELECT min_date FROM recent_date) interval '-12 days'
+                OR date > (SELECT min_date FROM recent_date) 
             )        
             UPDATE market.price_history ph
             SET one_wk_avg =  cte.one_wk_avg

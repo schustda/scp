@@ -125,7 +125,31 @@ def business_rules_staging():
     ''')
     return
 
-def metrics_production():
+def create_staging_for_metrics():
+    ps = PSQL('scp')
+    with ps.conn.connect() as con:
+        con.execute(f'''
+            CREATE TABLE staging.price_history_metrics (
+                date date
+                ,ticker varchar(100)
+                ,one_wk_avg float
+                ,two_wk_avg float
+                ,two_wk_vol float
+            );
+            COMMIT;
+    ''')
+    return
+
+def drop_staging_for_metrics():
+    ps = PSQL('scp')
+    with ps.conn.connect() as con:
+        con.execute(f'''
+            DROP TABLE staging.price_history_metrics;
+            COMMIT;
+    ''')
+    return
+
+def populate_staging_for_metrics():
     ps = PSQL('scp')
     with ps.conn.connect() as con:
         con.execute(f'''
@@ -140,20 +164,30 @@ def metrics_production():
                 WHERE ticker IN (SELECT ticker FROM backfilled_tickers)
                 AND one_wk_avg IS NULL
             )
-            ,cte AS (
-                SELECT date, ticker
-                    ,AVG(ohlc) OVER(ORDER BY date ROWS BETWEEN 1 FOLLOWING AND 5 FOLLOWING) AS one_wk_avg
-                    ,AVG(ohlc) OVER(ORDER BY date ROWS BETWEEN 1 FOLLOWING AND 10 FOLLOWING) AS two_wk_avg
-                    ,AVG(dollar_volume) OVER(ORDER BY date ROWS BETWEEN CURRENT ROW AND 10 FOLLOWING) AS two_wk_vol 
-                FROM market.price_history
-                WHERE ticker NOT IN (SELECT ticker FROM backfilled_tickers)
-                OR date > (SELECT min_date FROM recent_date) 
-            )        
+
+            INSERT INTO staging.price_history_metrics
+            SELECT date, ticker
+                ,AVG(ohlc) OVER(ORDER BY date ROWS BETWEEN 1 FOLLOWING AND 5 FOLLOWING) AS one_wk_avg
+                ,AVG(ohlc) OVER(ORDER BY date ROWS BETWEEN 1 FOLLOWING AND 10 FOLLOWING) AS two_wk_avg
+                ,AVG(dollar_volume) OVER(ORDER BY date ROWS BETWEEN CURRENT ROW AND 10 FOLLOWING) AS two_wk_vol 
+            FROM market.price_history
+            WHERE ticker NOT IN (SELECT ticker FROM backfilled_tickers)
+            OR date > (SELECT min_date FROM recent_date);
+            COMMIT; 
+    ''')
+    return
+
+
+def metrics_production():
+    ps = PSQL('scp')
+    with ps.conn.connect() as con:
+        con.execute(f'''
+
             UPDATE market.price_history ph
             SET one_wk_avg =  cte.one_wk_avg
                 ,two_wk_avg = cte.two_wk_avg
                 ,two_wk_vol = cte.two_wk_vol
-            FROM cte
+            FROM staging.price_history_metrics cte
             WHERE ph.date = cte.date
             AND ph.ticker = cte.ticker;
             COMMIT;
@@ -189,8 +223,23 @@ python_callable=drop_staging,
 dag=dag)
 
 t6 = PythonOperator(
+task_id='create_staging_for_metrics',
+python_callable=create_staging_for_metrics,
+dag=dag)
+
+t7 = PythonOperator(
+task_id='populate_staging_for_metrics',
+python_callable=populate_staging_for_metrics,
+dag=dag)
+
+t8 = PythonOperator(
 task_id='metrics_production',
 python_callable=metrics_production,
+dag=dag)
+
+t9 = PythonOperator(
+task_id='drop_staging_for_metrics',
+python_callable=drop_staging_for_metrics,
 dag=dag)
 
 for i in range(4):
@@ -205,3 +254,5 @@ for i in range(4):
 t3 >> t4 >> t5
 
 t4 >> t6
+
+t6 >> t7 >> t8 >> t9

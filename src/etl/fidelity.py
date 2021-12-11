@@ -222,25 +222,25 @@ task_id='drop_staging',
 python_callable=drop_staging,
 dag=dag)
 
-t6 = PythonOperator(
-task_id='create_staging_for_metrics',
-python_callable=create_staging_for_metrics,
-dag=dag)
+# t6 = PythonOperator(
+# task_id='create_staging_for_metrics',
+# python_callable=create_staging_for_metrics,
+# dag=dag)
 
-t7 = PythonOperator(
-task_id='populate_staging_for_metrics',
-python_callable=populate_staging_for_metrics,
-dag=dag)
+# t7 = PythonOperator(
+# task_id='populate_staging_for_metrics',
+# python_callable=populate_staging_for_metrics,
+# dag=dag)
 
-t8 = PythonOperator(
-task_id='metrics_production',
-python_callable=metrics_production,
-dag=dag)
+# t8 = PythonOperator(
+# task_id='metrics_production',
+# python_callable=metrics_production,
+# dag=dag)
 
-t9 = PythonOperator(
-task_id='drop_staging_for_metrics',
-python_callable=drop_staging_for_metrics,
-dag=dag)
+# t9 = PythonOperator(
+# task_id='drop_staging_for_metrics',
+# python_callable=drop_staging_for_metrics,
+# dag=dag)
 
 for i in range(4):
     t2 = PythonOperator(
@@ -253,6 +253,6 @@ for i in range(4):
 
 t3 >> t4 >> t5
 
-t4 >> t6
+# t4 >> t6
 
-t6 >> t7 >> t8 >> t9
+# t6 >> t7 >> t8 >> t9

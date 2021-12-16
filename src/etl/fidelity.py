@@ -137,7 +137,31 @@ def create_staging_for_metrics():
                 ,two_wk_vol float
             );
             COMMIT;
-    ''')
+        ''')
+        con.execute(f'''
+            CREATE TABLE staging.backfilled_tickers (ticker varchar(100));
+            COMMIT;
+        ''')
+        con.execute(f'''
+            INSERT INTO staging.backfilled_tickers (ticker)
+            SELECT DISTINCT ticker
+            FROM market.price_history
+            WHERE one_wk_avg IS NOT NULL;
+            COMMIT;
+        ''')
+
+        con.execute(f'''
+            UPDATE items.parameters 
+            SET value_date = (
+                SELECT MIN(date) + interval '-12 days' min_date
+                FROM market.price_history ph
+                INNER JOIN staging.backfilled_tickers bt
+                ON ph.ticker = bt.ticker
+                WHERE one_wk_avg IS NULL
+            )
+            WHERE name = 'ticker_recent_date';
+            COMMIT;
+        ''')
     return
 
 def drop_staging_for_metrics():
@@ -145,6 +169,7 @@ def drop_staging_for_metrics():
     with ps.conn.connect() as con:
         con.execute(f'''
             DROP TABLE staging.price_history_metrics;
+            DROP TABLE staging.backfilled_tickers;
             COMMIT;
     ''')
     return
@@ -153,26 +178,16 @@ def populate_staging_for_metrics():
     ps = PSQL('scp')
     with ps.conn.connect() as con:
         con.execute(f'''
-            with backfilled_tickers AS (
-                SELECT ticker
-                FROM market.price_history
-                WHERE one_wk_avg IS NOT NULL
-            )
-            ,recent_date AS (
-                SELECT MIN(date) + interval '-12 days' min_date
-                FROM market.price_history
-                WHERE ticker IN (SELECT ticker FROM backfilled_tickers)
-                AND one_wk_avg IS NULL
-            )
-
             INSERT INTO staging.price_history_metrics
-            SELECT date, ticker
+            SELECT date, ph.ticker
                 ,AVG(ohlc) OVER(ORDER BY date ROWS BETWEEN 1 FOLLOWING AND 5 FOLLOWING) AS one_wk_avg
                 ,AVG(ohlc) OVER(ORDER BY date ROWS BETWEEN 1 FOLLOWING AND 10 FOLLOWING) AS two_wk_avg
                 ,AVG(dollar_volume) OVER(ORDER BY date ROWS BETWEEN CURRENT ROW AND 10 FOLLOWING) AS two_wk_vol 
-            FROM market.price_history
-            WHERE ticker NOT IN (SELECT ticker FROM backfilled_tickers)
-            OR date > (SELECT min_date FROM recent_date);
+            FROM market.price_history ph
+            LEFT JOIN staging.backfilled_tickers bt
+            ON ph.ticker = bt.ticker
+            WHERE bt.ticker IS NULL
+            OR date > (SELECT value_date FROM items.parameters WHERE name = 'ticker_recent_date');
             COMMIT; 
     ''')
     return
@@ -182,7 +197,6 @@ def metrics_production():
     ps = PSQL('scp')
     with ps.conn.connect() as con:
         con.execute(f'''
-
             UPDATE market.price_history ph
             SET one_wk_avg =  cte.one_wk_avg
                 ,two_wk_avg = cte.two_wk_avg
@@ -222,25 +236,25 @@ task_id='drop_staging',
 python_callable=drop_staging,
 dag=dag)
 
-# t6 = PythonOperator(
-# task_id='create_staging_for_metrics',
-# python_callable=create_staging_for_metrics,
-# dag=dag)
+t6 = PythonOperator(
+task_id='create_staging_for_metrics',
+python_callable=create_staging_for_metrics,
+dag=dag)
 
-# t7 = PythonOperator(
-# task_id='populate_staging_for_metrics',
-# python_callable=populate_staging_for_metrics,
-# dag=dag)
+t7 = PythonOperator(
+task_id='populate_staging_for_metrics',
+python_callable=populate_staging_for_metrics,
+dag=dag)
 
-# t8 = PythonOperator(
-# task_id='metrics_production',
-# python_callable=metrics_production,
-# dag=dag)
+t8 = PythonOperator(
+task_id='metrics_production',
+python_callable=metrics_production,
+dag=dag)
 
-# t9 = PythonOperator(
-# task_id='drop_staging_for_metrics',
-# python_callable=drop_staging_for_metrics,
-# dag=dag)
+t9 = PythonOperator(
+task_id='drop_staging_for_metrics',
+python_callable=drop_staging_for_metrics,
+dag=dag)
 
 for i in range(4):
     t2 = PythonOperator(
@@ -253,6 +267,6 @@ for i in range(4):
 
 t3 >> t4 >> t5
 
-# t4 >> t6
+t4 >> t6
 
-# t6 >> t7 >> t8 >> t9
+t6 >> t7 >> t8 >> t9

@@ -67,11 +67,13 @@ def insert():
     ,sentiment_subjectivity
     ,daily_ranking
     ,target
-    ,CASE WHEN idx IN (SELECT idx FROM staging.idx2) THEN True ELSE False END AS working_train
-    ,CASE WHEN idx NOT IN (SELECT idx FROM staging.idx2) THEN True ELSE False END AS working_validation
-    ,CASE WHEN idx IN (SELECT idx FROM staging.idx3) THEN True ELSE False END AS model_development_train
-    ,CASE WHEN idx NOT IN (SELECT idx FROM staging.idx3) THEN True ELSE False END AS model_development_test
-    FROM ihub.board_date
+    ,CASE WHEN t1.idx IS NOT NULL THEN True ELSE False END AS working_train
+    ,CASE WHEN t1.idx IS NULL THEN True ELSE False END AS working_validation
+    ,CASE WHEN t2.idx IS NOT NULL THEN True ELSE False END AS model_development_train
+    ,CASE WHEN t2.idx IS NULL THEN True ELSE False END AS model_development_test
+    FROM ihub.board_date bd
+    LEFT JOIN staging.idx2 t1 ON bd.idx = t1.idx
+    LEFT JOIN staging.idx3 t2 ON bd.idx = t2.idx 
     WHERE target IS NOT NULL;
     COMMIT;
     ''')

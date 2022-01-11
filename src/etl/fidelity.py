@@ -129,6 +129,7 @@ def create_staging_for_metrics():
     ps = PSQL('scp')
     with ps.conn.connect() as con:
         con.execute(f'''
+            DROP TABLE IF EXISTS staging.price_history_metrics;
             CREATE TABLE staging.price_history_metrics (
                 date date
                 ,ticker varchar(100)
@@ -139,6 +140,7 @@ def create_staging_for_metrics():
             COMMIT;
         ''')
         con.execute(f'''
+            DROP TABLE IF EXISTS staging.backfilled_tickers;
             CREATE TABLE staging.backfilled_tickers (ticker varchar(100));
             COMMIT;
         ''')

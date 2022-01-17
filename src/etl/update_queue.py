@@ -58,7 +58,7 @@ def add_new_code(message_data, ps):
 def pull_new_messages():
     db = PSQL('scp')
     # queue = db.to_list(f'''SELECT message_id FROM ihub.missing_ids WHERE message_id %% 4 = {list_num} LIMIT 1000''')
-    queue = db.to_list(f'''SELECT message_id FROM ihub.missing_ids LIMIT 1000''')
+    queue = db.to_list(f'''SELECT message_id FROM ihub.missing_ids''')
     ihub = Ihub()
     for message_id in queue:
         message_data = ihub.get_message_data(message_id)

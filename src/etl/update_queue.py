@@ -54,9 +54,11 @@ def add_new_code(message_data, ps):
                 ps.execute(f'''INSERT INTO items.symbol (ihub_code, status) VALUES ('{ihub_code}','active')''')
             return
 
-def pull_new_messages(list_num):
+# def pull_new_messages(list_num):
+def pull_new_messages():
     db = PSQL('scp')
-    queue = db.to_list(f'''SELECT message_id FROM ihub.missing_ids WHERE message_id %% 4 = {list_num} LIMIT 1000''')
+    # queue = db.to_list(f'''SELECT message_id FROM ihub.missing_ids WHERE message_id %% 4 = {list_num} LIMIT 1000''')
+    queue = db.to_list(f'''SELECT message_id FROM ihub.missing_ids LIMIT 1000''')
     ihub = Ihub()
     for message_id in queue:
         message_data = ihub.get_message_data(message_id)
@@ -83,11 +85,18 @@ task_id='dump_to_missing_ids_table',
 python_callable=dump_to_missing_ids_table,
 dag=dag)
 
-for i in range(4):
-    t2 = PythonOperator(
-    task_id=f'pull_new_messages_{i}',
-    python_callable=pull_new_messages,
-    op_kwargs={'list_num': i},
-    dag=dag)
+# for i in range(4):
+#     t2 = PythonOperator(
+#     task_id=f'pull_new_messages_{i}',
+#     python_callable=pull_new_messages,
+#     op_kwargs={'list_num': i},
+#     dag=dag)
     
-    t1 >> t2
+#     t1 >> t2
+
+t2 = PythonOperator(
+task_id=f'pull_new_messages_{i}',
+python_callable=pull_new_messages,
+dag=dag)
+
+t1 >> t2

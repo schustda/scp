@@ -95,7 +95,7 @@ dag=dag)
 #     t1 >> t2
 
 t2 = PythonOperator(
-task_id=f'pull_new_messages_{i}',
+task_id=f'pull_new_messages',
 python_callable=pull_new_messages,
 dag=dag)
 

@@ -1,4 +1,4 @@
-CREATE VIEW ihub.vBoard_Date AS 
+CREATE OR REPLACE VIEW ihub.vBoard_Date AS 
 
     with ih AS (
         SELECT date, ticker, sentiment_polarity, sentiment_subjectivity, posts, RANK() OVER(PARTITION BY date ORDER BY posts DESC) daily_ranking
@@ -11,7 +11,7 @@ CREATE VIEW ihub.vBoard_Date AS
         ) x
     )
 
-    SELECT ph.date,ph.ticker,sentiment_polarity,sentiment_subjectivity,posts,daily_ranking,ohlc,dollar_volume,one_wk_avg,two_wk_avg,two_wk_vol,target
+    SELECT ph.date,ph.ticker,COALESCE(sentiment_polarity, 0) sentiment_polarity, COALESCE(sentiment_subjectivity, 0) sentiment_subjectivity, COALESCE(posts, 0) posts, daily_ranking,ohlc,dollar_volume,one_wk_avg,two_wk_avg,two_wk_vol,target
     FROM market.price_history ph
     LEFT JOIN ih
     ON ph.ticker = ih.ticker

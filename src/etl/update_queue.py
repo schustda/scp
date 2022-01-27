@@ -26,11 +26,11 @@ default_args = {
 }
 
 def dump_to_missing_ids_table():
-    ps = PSQL('scp')
+    postgres_connector = PSQL('scp')
     # ps.conn.execute(
-    with ps.conn.connect() as con:
-        con.execute('''TRUNCATE TABLE ihub.missing_ids''')
-        con.execute('''
+    with postgres_connector.conn.connect()as database_connection:
+        database_connection.execute('''TRUNCATE TABLE ihub.missing_ids''')
+        database_connection.execute('''
             INSERT INTO ihub.missing_ids
             SELECT message_id
             FROM ihub.message_sentiment
@@ -56,17 +56,16 @@ def add_new_code(message_data, ps):
 
 # def pull_new_messages(list_num):
 def pull_new_messages():
-    db = PSQL('scp')
-    # queue = db.to_list(f'''SELECT message_id FROM ihub.missing_ids WHERE message_id %% 4 = {list_num} LIMIT 1000''')
-    queue = db.to_list(f'''SELECT message_id FROM ihub.missing_ids''')
+    postgres_connector = PSQL('scp')
+    queue = postgres_connector.to_list(f'''SELECT message_id FROM ihub.missing_ids''')
     ihub = Ihub()
     for message_id in queue:
         message_data = ihub.get_message_data(message_id)
         if message_data.get('ihub_code',''):
             message_data['ihub_code'] = message_data['ihub_code'].replace('%','%%').replace("'","''")
-        add_new_code(message_data, db)
+        add_new_code(message_data, postgres_connector)
         to_update = ','.join([f"{k} = '{str(v)}' " for k,v in message_data.items()])
-        db.execute(f'''
+        postgres_connector.execute(f'''
             UPDATE ihub.message_sentiment
             SET {to_update}, updated_date = NOW() 
             WHERE message_id = {message_id};

@@ -24,9 +24,9 @@ default_args = {
 
 def insert():
 
-    ps = PSQL('scp')
-    with ps.conn.connect() as con:
-        con.execute('''
+    postgres_connector = PSQL('scp')
+    with postgres_connector.conn.connect()as database_connection:
+        database_connection.execute('''
     INSERT INTO ihub.board_date (date, ticker, sentiment_polarity, sentiment_subjectivity, posts, daily_ranking, ohlc, dollar_volume, one_wk_avg, two_wk_avg, two_wk_vol, target)
     SELECT bd.date,bd.ticker,sentiment_polarity,sentiment_subjectivity,posts,daily_ranking,ohlc,dollar_volume,one_wk_avg,two_wk_avg,two_wk_vol,t.target
     FROM ihub.vBoard_date bd
@@ -39,9 +39,9 @@ def insert():
     
 def truncate():
 
-    ps = PSQL('scp')
-    with ps.conn.connect() as con:
-        con.execute('''TRUNCATE TABLE ihub.board_date; COMMIT;''')
+    postgres_connector = PSQL('scp')
+    with postgres_connector.conn.connect()as database_connection:
+        database_connection.execute('''TRUNCATE TABLE ihub.board_date; COMMIT;''')
     return
     
     

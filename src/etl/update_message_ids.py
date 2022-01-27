@@ -27,17 +27,17 @@ default_args = {
 }
 
 def pull_most_recent():
-    db = PSQL('scp')
-    ih = Ihub()
-    max_post = db.get_scalar('''SELECT value_int FROM items.parameters WHERE name = 'max_post_number' ''')
+    postgres_connector = PSQL('scp')
+    ihub = Ihub()
+    max_post = postgres_connector.get_scalar('''SELECT value_int FROM items.parameters WHERE name = 'max_post_number' ''')
     
     # Search long first
     for i in [10000, 1000, 100]:
         for post_number in sample(range(max_post+i,max_post+(i*2)),10):
             sleep(5)
-            resp = ih.get_message_data(post_number)
+            resp = ihub.get_message_data(post_number)
             if resp.get('status','') == 'Active':
-                db.execute(f'''
+                postgres_connector.execute(f'''
                     UPDATE items.parameters 
                     SET value_int = {post_number}
                     WHERE name = 'max_post_number'
@@ -45,16 +45,16 @@ def pull_most_recent():
                 return
 
 def add_to_log():
-    db = PSQL('scp')
-    max_added = db.get_scalar('''SELECT MAX(message_id) FROM ihub.message_sentiment ''')
+    postgres_connector = PSQL('scp')
+    max_added = postgres_connector.get_scalar('''SELECT MAX(message_id) FROM ihub.message_sentiment ''')
 
     # limit to 10,000
-    max_post = min(db.get_scalar('''SELECT value_int FROM items.parameters WHERE name = 'max_post_number' '''), max_added + 10000)
+    max_post = min(postgres_connector.get_scalar('''SELECT value_int FROM items.parameters WHERE name = 'max_post_number' '''), max_added + 10000)
     if max_post == max_added:
         return
 
     df = pd.DataFrame(range(max_added+1,max_post+1), columns=['message_id'], dtype=object)
-    db.to_sql(df,schema='ihub',table='message_sentiment',if_exists='append')
+    postgres_connector.to_sql(df,schema='ihub',table='message_sentiment',if_exists='append')
     return
 
 dag = DAG(

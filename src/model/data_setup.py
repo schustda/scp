@@ -23,39 +23,39 @@ default_args = {
 }
 
 def create_staging_tables():
-    ps = PSQL('scp')
-    with ps.conn.connect() as con:
+    postgres_connector = PSQL('scp')
+    with postgres_connector.conn.connect()as database_connection:
         for tbl_name in ['idx1','idx2','idx3']:
-            con.execute(f'''CREATE TABLE staging.{tbl_name} (idx int);
+            database_connection.execute(f'''CREATE TABLE staging.{tbl_name} (idx int);
             COMMIT;''')
     return
 
 def fill_staging_table1():
-    ps = PSQL('scp')
-    with ps.conn.connect() as con:
-        con.execute(f'''INSERT INTO staging.idx1 (idx) SELECT idx FROM ihub.board_date WHERE target IS NOT NULL;
+    postgres_connector = PSQL('scp')
+    with postgres_connector.conn.connect()as database_connection:
+        database_connection.execute(f'''INSERT INTO staging.idx1 (idx) SELECT idx FROM ihub.board_date WHERE target IS NOT NULL;
         COMMIT;''')
     return
 
 def fill_staging_table2():
-    ps = PSQL('scp')
-    with ps.conn.connect() as con:
-        con.execute(f'''INSERT INTO staging.idx2 (idx) SELECT idx FROM staging.idx1 TABLESAMPLE SYSTEM (75);
+    postgres_connector = PSQL('scp')
+    with postgres_connector.conn.connect()as database_connection:
+        database_connection.execute(f'''INSERT INTO staging.idx2 (idx) SELECT idx FROM staging.idx1 TABLESAMPLE SYSTEM (75);
         COMMIT;''')
     return
 
 def fill_staging_table3():
-    ps = PSQL('scp')
-    with ps.conn.connect() as con:
-        con.execute(f'''INSERT INTO staging.idx3 (idx) SELECT idx FROM staging.idx2 TABLESAMPLE SYSTEM (75);
+    postgres_connector = PSQL('scp')
+    with postgres_connector.conn.connect()as database_connection:
+        database_connection.execute(f'''INSERT INTO staging.idx3 (idx) SELECT idx FROM staging.idx2 TABLESAMPLE SYSTEM (75);
         COMMIT;''')
     return
 
 def insert():
 
-    ps = PSQL('scp')
-    with ps.conn.connect() as con:
-        con.execute('''
+    postgres_connector = PSQL('scp')
+    with postgres_connector.conn.connect()as database_connection:
+        database_connection.execute('''
     INSERT INTO model.combined_data (idx,ohlc,dollar_volume,posts,sentiment_polarity,sentiment_subjectivity,daily_ranking,target,working_train,working_validation,model_development_train,model_development_test)
         
     SELECT
@@ -81,16 +81,16 @@ def insert():
     
 def truncate():
 
-    ps = PSQL('scp')
-    with ps.conn.connect() as con:
-        con.execute('''TRUNCATE TABLE model.combined_data; COMMIT;''')
+    postgres_connector = PSQL('scp')
+    with postgres_connector.conn.connect()as database_connection:
+        database_connection.execute('''TRUNCATE TABLE model.combined_data; COMMIT;''')
     return
     
 def drop_staging_table():
-    ps = PSQL('scp')
-    with ps.conn.connect() as con:
+    postgres_connector = PSQL('scp')
+    with postgres_connector.conn.connect()as database_connection:
         for tbl_name in ['idx1','idx2','idx3']:
-            con.execute(f'''DROP TABLE staging.{tbl_name}; COMMIT;''')
+            database_connection.execute(f'''DROP TABLE staging.{tbl_name}; COMMIT;''')
     return
 
 dag = DAG(

@@ -47,7 +47,7 @@ def ticker_to_staging(f, ps, ticker):
 
 def fidelity_to_staging(list_num):
     
-    ps = PSQL('scp')
+    postgres_connector = PSQL('scp')
     f = Fidelity()
     queue = ps.to_list(f'''
         SELECT ticker FROM (
@@ -69,9 +69,9 @@ def fidelity_to_staging(list_num):
 
 def create_staging():
 
-    ps = PSQL('scp')
-    with ps.conn.connect() as con:
-        con.execute(f'''
+    postgres_connector = PSQL('scp')
+    with postgres_connector.conn.connect()as database_connection:
+        database_connection.execute(f'''
         DROP TABLE IF EXISTS staging.price_history;
 
         CREATE TABLE staging.price_history (
@@ -91,9 +91,9 @@ def create_staging():
     return
 
 def insert():
-    ps = PSQL('scp')
-    with ps.conn.connect() as con:
-        con.execute(f'''
+    postgres_connector = PSQL('scp')
+    with postgres_connector.conn.connect()as database_connection:
+        database_connection.execute(f'''
             INSERT INTO market.price_history (date,open,high,low,close,volume,ticker,ohlc,dollar_volume)
             SELECT DISTINCT a.*
 			FROM staging.price_history a
@@ -106,17 +106,17 @@ def insert():
     return
 
 def drop_staging():
-    ps = PSQL('scp')
-    with ps.conn.connect() as con:
-        con.execute(f'''
+    postgres_connector = PSQL('scp')
+    with postgres_connector.conn.connect()as database_connection:
+        database_connection.execute(f'''
         DROP TABLE staging.price_history;
         COMMIT; ''')
     return
 
 def business_rules_staging():
-    ps = PSQL('scp')
-    with ps.conn.connect() as con:
-        con.execute(f'''
+    postgres_connector = PSQL('scp')
+    with postgres_connector.conn.connect()as database_connection:
+        database_connection.execute(f'''
         UPDATE staging.price_history
         SET 
             ohlc = (open+high+low+close)/4
@@ -126,9 +126,9 @@ def business_rules_staging():
     return
 
 def create_staging_for_metrics():
-    ps = PSQL('scp')
-    with ps.conn.connect() as con:
-        con.execute(f'''
+    postgres_connector = PSQL('scp')
+    with postgres_connector.conn.connect()as database_connection:
+        database_connection.execute(f'''
             DROP TABLE IF EXISTS staging.price_history_metrics;
             CREATE TABLE staging.price_history_metrics (
                 date date
@@ -139,12 +139,12 @@ def create_staging_for_metrics():
             );
             COMMIT;
         ''')
-        con.execute(f'''
+        database_connection.execute(f'''
             DROP TABLE IF EXISTS staging.backfilled_tickers;
             CREATE TABLE staging.backfilled_tickers (ticker varchar(100));
             COMMIT;
         ''')
-        con.execute(f'''
+        database_connection.execute(f'''
             INSERT INTO staging.backfilled_tickers (ticker)
             SELECT DISTINCT ticker
             FROM market.price_history
@@ -152,7 +152,7 @@ def create_staging_for_metrics():
             COMMIT;
         ''')
 
-        con.execute(f'''
+        database_connection.execute(f'''
             UPDATE items.parameters 
             SET value_date = (
                 SELECT MIN(date) + interval '-12 days' min_date
@@ -167,9 +167,9 @@ def create_staging_for_metrics():
     return
 
 def drop_staging_for_metrics():
-    ps = PSQL('scp')
-    with ps.conn.connect() as con:
-        con.execute(f'''
+    postgres_connector = PSQL('scp')
+    with postgres_connector.conn.connect()as database_connection:
+        database_connection.execute(f'''
             DROP TABLE staging.price_history_metrics;
             DROP TABLE staging.backfilled_tickers;
             COMMIT;
@@ -177,9 +177,9 @@ def drop_staging_for_metrics():
     return
 
 def populate_staging_for_metrics():
-    ps = PSQL('scp')
-    with ps.conn.connect() as con:
-        con.execute(f'''
+    postgres_connector = PSQL('scp')
+    with postgres_connector.conn.connect()as database_connection:
+        database_connection.execute(f'''
             INSERT INTO staging.price_history_metrics
             SELECT date, ph.ticker
                 ,AVG(ohlc) OVER(ORDER BY date ROWS BETWEEN 1 FOLLOWING AND 5 FOLLOWING) AS one_wk_avg
@@ -196,9 +196,9 @@ def populate_staging_for_metrics():
 
 
 def metrics_production():
-    ps = PSQL('scp')
-    with ps.conn.connect() as con:
-        con.execute(f'''
+    postgres_connector = PSQL('scp')
+    with postgres_connector.conn.connect()as database_connection:
+        database_connection.execute(f'''
             UPDATE market.price_history ph
             SET one_wk_avg =  cte.one_wk_avg
                 ,two_wk_avg = cte.two_wk_avg

@@ -26,8 +26,8 @@ default_args = {
 
 def get_tickers():
 
-    db = PSQL('scp')
-    queue = db.to_list('''SELECT ihub_code FROM items.symbol WHERE ticker IS NULL ORDER BY Created_Date DESC''')
+    postgres_connector = PSQL('scp')
+    queue = postgres_connector.to_list('''SELECT ihub_code FROM items.symbol WHERE ticker IS NULL ORDER BY Created_Date DESC''')
     for ihub_code in queue:
         headers = {
                     "User-Agent": 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.47 Safari/537.36'
@@ -41,7 +41,7 @@ def get_tickers():
                 ticker_url = data.get('href','')
                 exchange = ticker_url.split('/')[4].lower()
                 ticker = ticker_url.split('/')[5].lower()
-                db.execute(f'''
+                postgres_connector.execute(f'''
                     UPDATE items.symbol 
                     SET exchange = '{exchange}', ticker = '{ticker}', modified_date = NOW()
                     WHERE ihub_code = '{ihub_code}'

@@ -140,3 +140,7 @@ cython_debug/
 reference/
 
 .idea
+
+src/email_address.txt
+src/email_password.txt
+src/email_recipients.txt

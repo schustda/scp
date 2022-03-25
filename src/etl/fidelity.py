@@ -49,7 +49,7 @@ def fidelity_to_staging(list_num):
     
     postgres_connector = PSQL('scp')
     f = Fidelity()
-    queue = ps.to_list(f'''
+    queue = postgres_connector.to_list(f'''
         SELECT ticker FROM (
             SELECT ticker, symbol_id %% 4 r
             FROM (
@@ -63,14 +63,14 @@ def fidelity_to_staging(list_num):
         WHERE r = {list_num} ''')
     
     for ticker in queue:
-        ticker_to_staging(f, ps, ticker)
+        ticker_to_staging(f, postgres_connector, ticker)
 
     return
 
 def create_staging():
 
     postgres_connector = PSQL('scp')
-    with postgres_connector.conn.connect()as database_connection:
+    with postgres_connector.conn.connect() as database_connection:
         database_connection.execute(f'''
         DROP TABLE IF EXISTS staging.price_history;
 
@@ -92,7 +92,7 @@ def create_staging():
 
 def insert():
     postgres_connector = PSQL('scp')
-    with postgres_connector.conn.connect()as database_connection:
+    with postgres_connector.conn.connect() as database_connection:
         database_connection.execute(f'''
             INSERT INTO market.price_history (date,open,high,low,close,volume,ticker,ohlc,dollar_volume)
             SELECT DISTINCT a.*
@@ -107,7 +107,7 @@ def insert():
 
 def drop_staging():
     postgres_connector = PSQL('scp')
-    with postgres_connector.conn.connect()as database_connection:
+    with postgres_connector.conn.connect() as database_connection:
         database_connection.execute(f'''
         DROP TABLE staging.price_history;
         COMMIT; ''')
@@ -115,7 +115,7 @@ def drop_staging():
 
 def business_rules_staging():
     postgres_connector = PSQL('scp')
-    with postgres_connector.conn.connect()as database_connection:
+    with postgres_connector.conn.connect() as database_connection:
         database_connection.execute(f'''
         UPDATE staging.price_history
         SET 
@@ -127,7 +127,7 @@ def business_rules_staging():
 
 def create_staging_for_metrics():
     postgres_connector = PSQL('scp')
-    with postgres_connector.conn.connect()as database_connection:
+    with postgres_connector.conn.connect() as database_connection:
         database_connection.execute(f'''
             DROP TABLE IF EXISTS staging.price_history_metrics;
             CREATE TABLE staging.price_history_metrics (
@@ -168,7 +168,7 @@ def create_staging_for_metrics():
 
 def drop_staging_for_metrics():
     postgres_connector = PSQL('scp')
-    with postgres_connector.conn.connect()as database_connection:
+    with postgres_connector.conn.connect() as database_connection:
         database_connection.execute(f'''
             DROP TABLE staging.price_history_metrics;
             DROP TABLE staging.backfilled_tickers;
@@ -178,7 +178,7 @@ def drop_staging_for_metrics():
 
 def populate_staging_for_metrics():
     postgres_connector = PSQL('scp')
-    with postgres_connector.conn.connect()as database_connection:
+    with postgres_connector.conn.connect() as database_connection:
         database_connection.execute(f'''
             INSERT INTO staging.price_history_metrics
             SELECT date, ph.ticker
@@ -197,7 +197,7 @@ def populate_staging_for_metrics():
 
 def metrics_production():
     postgres_connector = PSQL('scp')
-    with postgres_connector.conn.connect()as database_connection:
+    with postgres_connector.conn.connect() as database_connection:
         database_connection.execute(f'''
             UPDATE market.price_history ph
             SET one_wk_avg =  cte.one_wk_avg
